@@ -35,7 +35,17 @@ forest-fire-xai/
 
 ---
 
-## Quickstart Guide
+## ⚡ Single-Command Quickstart
+Run the entire platform (backend API, database initialization, weights check, and React frontend dashboard) with one command:
+
+```bash
+python runproj.py
+```
+This automatically initializes the database, verifies model weights, launches both services, and opens `http://localhost:5173` in your default browser.
+
+---
+
+## Manual Step-by-Step Setup
 
 ### 1. Backend Setup
 ```bash
