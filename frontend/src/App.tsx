@@ -58,10 +58,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar currentPath={currentPath} onNavigate={navigate} />
-      <div className="main-content">
-        <Navbar />
-        {renderContent()}
+      <Navbar currentPath={currentPath} onNavigate={navigate} />
+      <div className="app-body">
+        <Sidebar currentPath={currentPath} onNavigate={navigate} />
+        <main className="main-content">
+          {renderContent()}
+        </main>
       </div>
     </div>
   );
