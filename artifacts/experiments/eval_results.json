@@ -1,0 +1,49 @@
+{
+  "accuracy": 1.0,
+  "macro_precision": 1.0,
+  "macro_recall": 1.0,
+  "macro_f1": 1.0,
+  "per_class": {
+    "fire": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0
+    },
+    "smoke": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0
+    },
+    "normal": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      3,
+      0,
+      0
+    ],
+    [
+      0,
+      3,
+      0
+    ],
+    [
+      0,
+      0,
+      3
+    ]
+  ],
+  "class_names": [
+    "fire",
+    "smoke",
+    "normal"
+  ],
+  "total_samples": 9,
+  "latency_ms_per_frame": 10.78,
+  "throughput_fps": 92.8,
+  "device": "cpu"
+}

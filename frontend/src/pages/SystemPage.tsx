@@ -1,0 +1,129 @@
+import React, { useState, useEffect } from 'react';
+import { Cpu, Server, Database, Radio, RefreshCw, CheckCircle, ShieldAlert } from 'lucide-react';
+import { api } from '../services/api';
+import { ModelStatus } from '../types';
+
+export const SystemPage: React.FC = () => {
+  const [health, setHealth] = useState<any>(null);
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
+  const [monitoringStatus, setMonitoringStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDiagnostics = async () => {
+    setLoading(true);
+    try {
+      const [h, m, mon] = await Promise.all([
+        api.getHealth(),
+        api.getModelStatus(),
+        api.getMonitoringStatus()
+      ]);
+      setHealth(h);
+      setModelStatus(m);
+      setMonitoringStatus(mon);
+    } catch (err) {
+      console.error('Failed to load system diagnostics:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDiagnostics();
+  }, []);
+
+  return (
+    <div className="page-container">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.85rem', color: '#fff', marginBottom: '6px' }}>System Diagnostics & Core Health</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
+            Underlying deep learning runtime, database status, checkpoint metadata, and active streaming threads.
+          </p>
+        </div>
+        <button onClick={fetchDiagnostics} className="btn btn-secondary">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          <span>Refresh Diagnostics</span>
+        </button>
+      </div>
+
+      <div className="grid-2" style={{ gap: '24px' }}>
+        {/* Model Card */}
+        <div className="glass-card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <Cpu size={20} color="var(--color-flame)" />
+            <h2 style={{ fontSize: '1.15rem', color: '#fff' }}>Deep Learning Inference Core</h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.88rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Architecture:</span>
+              <span style={{ color: '#fff', fontWeight: 600 }}>{modelStatus?.model_name || 'FireNetCNN'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Status:</span>
+              <span style={{ color: modelStatus?.loaded ? 'var(--color-normal)' : '#ef4444', fontWeight: 600 }}>
+                {modelStatus?.loaded ? 'Loaded in Memory' : 'Unloaded'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Execution Device:</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-accent)' }}>{modelStatus?.device?.toUpperCase() || 'CPU'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Output Classes:</span>
+              <span style={{ color: '#fff' }}>{modelStatus?.classes.join(', ')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Demo Fixture Mode:</span>
+              <span style={{ color: modelStatus?.demo_mode ? 'var(--color-warning)' : 'var(--color-normal)' }}>
+                {modelStatus?.demo_mode ? 'Active (Untrained Test Weights)' : 'Disabled (Production Weights)'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Active Weights File:</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {modelStatus?.checkpoint_path}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Database & API Backend */}
+        <div className="glass-card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <Database size={20} color="var(--color-accent)" />
+            <h2 style={{ fontSize: '1.15rem', color: '#fff' }}>Backend & Persistence Status</h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.88rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>API Gateway:</span>
+              <span style={{ color: 'var(--color-normal)', fontWeight: 600 }}>FastAPI (Uvicorn Async)</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Database Engine:</span>
+              <span style={{ color: health?.database === 'connected' ? 'var(--color-normal)' : '#ef4444', fontWeight: 600 }}>
+                {health?.database === 'connected' ? 'Connected & Healthy' : 'Degraded'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Active Monitoring Threads:</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: '#fff', fontWeight: 700 }}>
+                {monitoringStatus?.active_workers_count ?? 0}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Explainability Engine:</span>
+              <span style={{ color: '#fff' }}>Grad-CAM (PyTorch Backward Hook)</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Heartbeat Ping:</span>
+              <span style={{ color: 'var(--text-muted)' }}>{health ? new Date(health.timestamp).toLocaleTimeString() : 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Checkpoints and models (except baseline/demo weights if committed)
+artifacts/checkpoints/*.pt
+artifacts/checkpoints/*.pth
+artifacts/checkpoints/*.onnx
+
+# Data directories (keep manifests and samples only)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+runtime/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
