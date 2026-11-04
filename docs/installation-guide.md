@@ -55,13 +55,13 @@ npm run build
 ### 4.1 Running the Backend API
 From the project root:
 ```bash
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8010 --reload
 ```
-Interactive API docs are available at `http://127.0.0.1:8000/docs`.
+Interactive API docs are available at `http://127.0.0.1:8010/docs`.
 
 ### 4.2 Running the Frontend Dashboard
 From the `frontend/` directory:
 ```bash
 npm run dev
 ```
-The dashboard runs at `http://localhost:5173`.
+The dashboard runs at `http://localhost:5180`.

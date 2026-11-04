@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "Explainable Forest Fire Detection API"
     APP_ENV: str = "development"
     API_HOST: str = "127.0.0.1"
-    API_PORT: int = 8000
-    FRONTEND_ORIGIN: str = "http://localhost:5173"
+    API_PORT: int = 8010
+    FRONTEND_ORIGIN: str = "http://localhost:5180"
 
     # Database Settings (PostgreSQL or SQLite fallback)
     DATABASE_URL: str = "sqlite:///./runtime/forest_fire.db"
@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     def get_cors_origins(self) -> List[str]:
         return [
             self.FRONTEND_ORIGIN.rstrip("/"),
+            "http://localhost:5180",
+            "http://127.0.0.1:5180",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "http://localhost:3000"

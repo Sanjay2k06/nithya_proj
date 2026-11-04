@@ -41,7 +41,7 @@ Run the entire platform (backend API, database initialization, weights check, an
 ```bash
 python runproj.py
 ```
-This automatically initializes the database, verifies model weights, launches both services, and opens `http://localhost:5173` in your default browser.
+This automatically initializes the database, verifies model weights, launches both services, and opens `http://localhost:5180` in your default browser.
 
 ---
 
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # 4. Start API server
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8010 --reload
 ```
 
 ### 2. Frontend Setup
