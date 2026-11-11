@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class DetectionResponse(BaseModel):
     id: str
     camera_id: Optional[str] = None
+    source_id: Optional[str] = None
     camera_name: Optional[str] = None
     source_type: str
     predicted_class: str

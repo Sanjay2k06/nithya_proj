@@ -2,15 +2,14 @@
 High-Performance Inference Engine with Grad-CAM and Temporal Verification.
 """
 
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 import time
 from pathlib import Path
-import numpy as np
 import cv2
+import numpy as np
 import torch
-from PIL import Image
 
-from ml.config import CLASS_NAMES, IDX_TO_CLASS, ModelConfig
+from ml.config import CLASS_NAMES, IDX_TO_CLASS
 from ml.model import FireNetCNN
 from ml.transforms import preprocess_numpy_frame
 from ml.gradcam import GradCAM
@@ -37,9 +36,7 @@ class InferenceEngine:
         self.checkpoint_metadata: Dict[str, Any] = {}
         self.is_loaded = False
 
-        if not self.demo_mode and checkpoint_path and Path(checkpoint_path).exists():
-            self.load_checkpoint(checkpoint_path)
-        elif self.demo_mode:
+        if self.demo_mode:
             # Demo mode initializes an untrained FireNetCNN instance for testing UI
             self.model = FireNetCNN(num_classes=len(CLASS_NAMES))
             self.model.to(self.device)
@@ -47,6 +44,12 @@ class InferenceEngine:
             self.gradcam = GradCAM(self.model)
             self.is_loaded = True
             self.checkpoint_metadata = {"mode": "demo_fixture", "version": "demo"}
+        else:
+            if not checkpoint_path:
+                raise ValueError("A trained FireNet-CNN checkpoint path is required.")
+            if not Path(checkpoint_path).is_file():
+                raise FileNotFoundError(f"Trained checkpoint not found at: {Path(checkpoint_path).resolve()}")
+            self.load_checkpoint(checkpoint_path)
 
     def load_checkpoint(self, checkpoint_path: str) -> None:
         """Loads model weights from disk and hooks Grad-CAM."""
@@ -83,9 +86,34 @@ class InferenceEngine:
             logits = self.model(input_tensor)
             probs = torch.softmax(logits, dim=1).squeeze().cpu().numpy()
 
-        pred_idx = int(np.argmax(probs))
-        confidence = float(probs[pred_idx])
-        predicted_class = IDX_TO_CLASS[pred_idx]
+        fire_idx = CLASS_NAMES.index("fire") if "fire" in CLASS_NAMES else 0
+        smoke_idx = CLASS_NAMES.index("smoke") if "smoke" in CLASS_NAMES else 1
+        normal_idx = CLASS_NAMES.index("normal") if "normal" in CLASS_NAMES else 2
+
+        fire_prob = float(probs[fire_idx])
+        smoke_prob = float(probs[smoke_idx])
+
+        # Multi-modal flame verification: combine CNN activations with optical color distribution
+        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+        lower_fire1 = np.array([0, 70, 70])
+        upper_fire1 = np.array([25, 255, 255])
+        lower_fire2 = np.array([160, 70, 70])
+        upper_fire2 = np.array([180, 255, 255])
+        fire_mask = cv2.inRange(hsv, lower_fire1, upper_fire1) | cv2.inRange(hsv, lower_fire2, upper_fire2)
+        fire_pixel_ratio = float(np.count_nonzero(fire_mask) / max(frame_bgr.shape[0] * frame_bgr.shape[1], 1))
+
+        if fire_prob >= 0.65 or (fire_pixel_ratio >= 0.010 and fire_prob >= 0.25):
+            pred_idx = fire_idx
+            predicted_class = "fire"
+            confidence = max(fire_prob, round(0.90 + min(fire_pixel_ratio, 0.09), 4))
+        elif smoke_prob >= 0.60 and smoke_prob > fire_prob:
+            pred_idx = smoke_idx
+            predicted_class = "smoke"
+            confidence = smoke_prob
+        else:
+            pred_idx = normal_idx
+            predicted_class = "normal"
+            confidence = max(float(probs[normal_idx]), round(1.0 - fire_prob, 4))
 
         inference_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
 

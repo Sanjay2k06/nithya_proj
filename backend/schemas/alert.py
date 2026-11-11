@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, ConfigDict
 class AlertResponse(BaseModel):
     id: str
     camera_id: Optional[str] = None
+    source_id: Optional[str] = None
+    source_name: Optional[str] = None
     camera_name: Optional[str] = None
     detection_id: Optional[str] = None
     alert_type: str

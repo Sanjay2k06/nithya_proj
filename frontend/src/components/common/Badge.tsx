@@ -3,7 +3,7 @@ import { Flame, Cloud, CheckCircle, AlertTriangle, ShieldCheck, Clock } from 'lu
 import { ClassLabel } from '../../types';
 
 interface BadgeProps {
-  type: ClassLabel | 'ACTIVE' | 'ACKNOWLEDGED' | 'CLOSED' | 'CRITICAL' | 'WARNING' | 'INFO';
+  type: ClassLabel | 'uncertain' | 'ACTIVE' | 'ACKNOWLEDGED' | 'CLOSED' | 'CRITICAL' | 'WARNING' | 'INFO';
   label?: string;
 }
 
@@ -33,6 +33,15 @@ export const Badge: React.FC<BadgeProps> = ({ type, label }) => {
       <span className="badge badge-normal">
         <CheckCircle size={12} />
         {label || type}
+      </span>
+    );
+  }
+
+  if (t === 'uncertain') {
+    return (
+      <span className="badge">
+        <AlertTriangle size={12} />
+        {label || 'UNCERTAIN'}
       </span>
     );
   }

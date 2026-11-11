@@ -87,7 +87,7 @@ export const DetectionsPage: React.FC<DetectionsPageProps> = ({ onNavigate }) =>
   return (
     <div className="page-container">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      <div className="reveal-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '1.85rem', color: '#fff', marginBottom: '6px' }}>Detection Log & Audit Registry</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
@@ -107,7 +107,7 @@ export const DetectionsPage: React.FC<DetectionsPageProps> = ({ onNavigate }) =>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="glass-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="glass-card reveal-up delay-1" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Filter size={16} color="var(--text-dim)" />
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Class:</span>

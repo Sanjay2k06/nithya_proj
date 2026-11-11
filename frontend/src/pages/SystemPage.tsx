@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Cpu, Server, Database, Radio, RefreshCw, CheckCircle, ShieldAlert } from 'lucide-react';
 import { api } from '../services/api';
-import { ModelStatus } from '../types';
+import { EnvironmentalReading, ModelStatus, TelegramStatus } from '../types';
 
 export const SystemPage: React.FC = () => {
   const [health, setHealth] = useState<any>(null);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [monitoringStatus, setMonitoringStatus] = useState<any>(null);
+  const [demoMonitoringStatus, setDemoMonitoringStatus] = useState<any>(null);
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
+  const [environmentReadings, setEnvironmentReadings] = useState<EnvironmentalReading[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchDiagnostics = async () => {
     setLoading(true);
     try {
-      const [h, m, mon] = await Promise.all([
+      const [h, m, mon, demo, telegram, readings] = await Promise.all([
         api.getHealth(),
         api.getModelStatus(),
-        api.getMonitoringStatus()
+        api.getMonitoringStatus(),
+        api.getDemoMonitoringStatus(),
+        api.getTelegramStatus(),
+        api.getEnvironmentalReadings(10)
       ]);
       setHealth(h);
       setModelStatus(m);
       setMonitoringStatus(mon);
+      setDemoMonitoringStatus(demo);
+      setTelegramStatus(telegram);
+      setEnvironmentReadings(readings);
+      setError(null);
     } catch (err) {
-      console.error('Failed to load system diagnostics:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load system diagnostics.');
     } finally {
       setLoading(false);
     }
@@ -86,6 +97,45 @@ export const SystemPage: React.FC = () => {
                 {modelStatus?.checkpoint_path}
               </span>
             </div>
+          </div>
+
+          {error && <div className="demo-error" role="alert">{error}</div>}
+          <div className="system-extra-grid">
+            <section className="glass-card system-extra-card">
+              <div className="system-extra-title">
+                <ShieldAlert size={19} />
+                <h2>Optional Environmental Inputs</h2>
+              </div>
+              {environmentReadings.length === 0 ? (
+                <p className="demo-empty-state">No sensor readings have been received. No environmental values are fabricated or inferred.</p>
+              ) : (
+                <div className="environment-readings">
+                  {environmentReadings.map((reading) => (
+                    <article key={reading.id} className="environment-reading">
+                      <strong>{reading.source_id}</strong>
+                      <time>{new Date(reading.recorded_at).toLocaleString()}</time>
+                      <span>Temperature: {reading.temperature_c ?? '—'} °C</span>
+                      <span>Humidity: {reading.humidity_percent ?? '—'}%</span>
+                      <span>Wind: {reading.wind_speed_mps ?? '—'} m/s</span>
+                      <span>Smoke sensor: {reading.smoke_sensor_value ?? '—'}</span>
+                    </article>
+                  ))}
+                </div>
+              )}
+              <p className="system-extra-note">Sensor readings are supplementary decision support; they do not replace visual classification.</p>
+            </section>
+
+            <section className="glass-card system-extra-card">
+              <div className="system-extra-title">
+                <Radio size={19} />
+                <h2>Monitoring and Notification Services</h2>
+              </div>
+              <div className="system-extra-row"><span>Video monitoring</span><strong>{demoMonitoringStatus?.is_monitoring || monitoringStatus?.active_workers_count ? 'RUNNING' : 'STOPPED'}</strong></div>
+              <div className="system-extra-row"><span>Telegram</span><strong>{telegramStatus?.connection_status?.toUpperCase() ?? 'UNKNOWN'}</strong></div>
+              <div className="system-extra-row"><span>Telegram enabled</span><strong>{telegramStatus?.enabled ? 'YES' : 'NO'}</strong></div>
+              <div className="system-extra-row"><span>Recipient</span><strong>{telegramStatus?.recipient_hint ?? 'Not configured'}</strong></div>
+              <p className="system-extra-note">Bot tokens are never returned by status APIs.</p>
+            </section>
           </div>
         </div>
 

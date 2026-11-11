@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: forest-fire-sentinel-api
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: "pip install --upgrade pip && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:///./data/firenet.db
+      - key: MODEL_CHECKPOINT_PATH
+        value: artifacts/checkpoints/firenet_best.pt
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: RUN_BOT_IN_API
+        value: "true"
+      - key: TELEGRAM_NOTIFICATIONS_ENABLED
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+

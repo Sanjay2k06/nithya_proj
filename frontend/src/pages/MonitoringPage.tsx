@@ -15,7 +15,7 @@ import {
   Sparkles,
   RefreshCw
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, resolveMediaUrl } from '../services/api';
 import { Camera, PredictionResponse, ClassLabel } from '../types';
 import { Badge } from '../components/common/Badge';
 
@@ -332,7 +332,7 @@ export const MonitoringPage: React.FC = () => {
                         </span>
                       </div>
                       <div style={{ position: 'relative' }}>
-                        <img src={prediction.heatmap_image_url} alt="Grad-CAM" style={{ width: '100%', height: '320px', objectFit: 'contain', borderRadius: '6px' }} />
+                        <img src={resolveMediaUrl(prediction.heatmap_image_url)} alt="Grad-CAM" style={{ width: '100%', height: '320px', objectFit: 'contain', borderRadius: '6px' }} />
                         <span style={{ position: 'absolute', bottom: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', color: '#ff8a65', fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px' }}>
                           Grad-CAM Heatmap
                         </span>
@@ -340,7 +340,7 @@ export const MonitoringPage: React.FC = () => {
                     </div>
                   ) : (
                     <img
-                      src={prediction?.heatmap_image_url || imagePreview}
+                      src={resolveMediaUrl(prediction?.heatmap_image_url) || imagePreview}
                       alt="Surveillance Feed"
                       style={{ width: '100%', maxHeight: '420px', objectFit: 'contain' }}
                     />
@@ -514,16 +514,18 @@ export const MonitoringPage: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Top Confidence</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#fff' }}>
-                      {(prediction.confidence * 100).toFixed(1)}%
+                      {prediction.confidence == null ? 'NOT AVAILABLE' : `${(prediction.confidence * 100).toFixed(1)}%`}
                     </span>
                   </div>
-                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${prediction.confidence * 100}%`,
-                      height: '100%',
-                      background: prediction.predicted_class === 'fire' ? 'var(--color-flame)' : prediction.predicted_class === 'smoke' ? 'var(--color-smoke)' : 'var(--color-normal)'
-                    }} />
-                  </div>
+                  {prediction.confidence != null && (
+                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${prediction.confidence * 100}%`,
+                        height: '100%',
+                        background: prediction.predicted_class === 'fire' ? 'var(--color-flame)' : prediction.predicted_class === 'smoke' ? 'var(--color-smoke)' : 'var(--color-normal)'
+                      }} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Probabilities Breakdown */}

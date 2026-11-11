@@ -12,6 +12,8 @@ from backend.api.v1.detections import router as detections_router
 from backend.api.v1.alerts import router as alerts_router
 from backend.api.v1.analytics import router as analytics_router
 from backend.api.v1.settings import router as settings_router
+from backend.api.v1.notifications import router as notifications_router
+from backend.api.v1.environment import router as environment_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -23,3 +25,5 @@ api_router.include_router(detections_router, prefix="/detections", tags=["Detect
 api_router.include_router(alerts_router, prefix="/alerts", tags=["Alerts & Incidents"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(settings_router, prefix="/settings", tags=["Operational Settings"])
+api_router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
+api_router.include_router(environment_router, prefix="/environment", tags=["Environmental Readings"])

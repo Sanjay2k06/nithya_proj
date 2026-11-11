@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Flame,
+  Bell,
   Search,
   Command,
-  Sun,
-  Moon,
-  ChevronDown,
   ExternalLink,
   Cpu,
   Settings,
@@ -15,7 +13,10 @@ import {
   BarChart3,
   RefreshCw,
   X,
-  FileCode2
+  FileCode2,
+  Image as ImageIcon,
+  Video,
+  Activity
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -34,20 +35,19 @@ interface SearchItem {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate }) => {
-  // Navigation & Dropdown State
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Backend Health State (Preserved from original)
   const [health, setHealth] = useState<{ status: string; database: string; model_loaded: boolean } | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
+  const [activeAlertCount, setActiveAlertCount] = useState<number | null>(null);
+  const [activeMonitoringCount, setActiveMonitoringCount] = useState<number | null>(null);
+  const [demoMonitoringActive, setDemoMonitoringActive] = useState(false);
 
-  // Refs for accessibility & outside click
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // Refs for accessibility
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,34 +61,66 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
     } finally {
       setLoadingHealth(false);
     }
+    try {
+      const data = await api.getAlerts(1, 1, 'ACTIVE');
+      setActiveAlertCount(data.total);
+    } catch {
+      setActiveAlertCount(null);
+    }
+    try {
+      const monitoring = await api.getMonitoringStatus();
+      setActiveMonitoringCount(monitoring.active_workers_count);
+    } catch {
+      setActiveMonitoringCount(null);
+    }
+    try {
+      const demoStatus = await api.getDemoMonitoringStatus();
+      setDemoMonitoringActive(demoStatus.is_monitoring);
+    } catch {
+      setDemoMonitoringActive(false);
+    }
   };
 
   useEffect(() => {
     let isMounted = true;
-    api.getHealth()
-      .then(data => { if (isMounted) setHealth(data); })
-      .catch(() => { if (isMounted) setHealth({ status: 'offline', database: 'disconnected', model_loaded: false }); });
+    const refreshStatus = async () => {
+      try {
+        const data = await api.getHealth();
+        if (isMounted) setHealth(data);
+      } catch {
+        if (isMounted) setHealth({ status: 'offline', database: 'disconnected', model_loaded: false });
+      }
 
-    const interval = setInterval(() => {
-      api.getHealth()
-        .then(data => { if (isMounted) setHealth(data); })
-        .catch(() => { if (isMounted) setHealth({ status: 'offline', database: 'disconnected', model_loaded: false }); });
-    }, 15000);
+      try {
+        const data = await api.getAlerts(1, 1, 'ACTIVE');
+        if (isMounted) setActiveAlertCount(data.total);
+      } catch {
+        if (isMounted) setActiveAlertCount(null);
+      }
+
+      try {
+        const monitoring = await api.getMonitoringStatus();
+        if (isMounted) setActiveMonitoringCount(monitoring.active_workers_count);
+      } catch {
+        if (isMounted) setActiveMonitoringCount(null);
+      }
+
+      try {
+        const demoStatus = await api.getDemoMonitoringStatus();
+        if (isMounted) setDemoMonitoringActive(demoStatus.is_monitoring);
+      } catch {
+        if (isMounted) setDemoMonitoringActive(false);
+      }
+    };
+    void refreshStatus();
+
+    const interval = setInterval(refreshStatus, 15000);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
   }, []);
-
-  // Sync theme with DOM
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
 
   const openSearch = () => {
     setSearchQuery('');
@@ -114,7 +146,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
         });
       } else if (e.key === 'Escape') {
         setSearchModalOpen(false);
-        setDropdownOpen(false);
         setMobileMenuOpen(false);
       }
     };
@@ -129,17 +160,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
       return () => clearTimeout(timer);
     }
   }, [searchModalOpen]);
-
-  // Outside click listener for dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Lock body scroll when mobile menu or search modal is open
   useEffect(() => {
@@ -160,25 +180,36 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
       window.history.pushState({}, '', path);
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
-    setDropdownOpen(false);
     setMobileMenuOpen(false);
     setSearchModalOpen(false);
   };
 
   const navLinks = [
-    { label: 'Overview', path: '/' },
-    { label: 'Live Monitoring', path: '/monitoring' },
-    { label: 'Detections', path: '/detections' },
-    { label: 'Alerts', path: '/alerts' },
-    { label: 'Analytics & XAI', path: '/analytics' },
+    { label: 'Overview', path: '/dashboard', icon: <Eye size={17} /> },
+    { label: 'Live Monitoring', path: '/monitoring', icon: <Radio size={17} /> },
+    { label: 'Image Analysis', path: '/image-analysis', icon: <ImageIcon size={17} /> },
+    { label: 'Video Analysis', path: '/video-analysis', icon: <Video size={17} /> },
+    { label: 'Detection History', path: '/detections', icon: <Flame size={17} /> },
+    { label: 'Incident History', path: '/incidents', icon: <AlertTriangle size={17} /> },
+    { label: 'Telegram Notifications', path: '/notifications', icon: <Bell size={17} /> },
+    { label: 'Analytics & XAI', path: '/analytics', icon: <BarChart3 size={17} /> },
+    { label: 'System Health', path: '/system-health', icon: <Activity size={17} /> },
+    { label: 'Settings', path: '/settings', icon: <Settings size={17} /> },
   ];
+
+  const currentPageTitle = currentPath.startsWith('/detections/')
+    ? 'Detection Details'
+    : currentPath === '/' ? 'Overview'
+      : currentPath === '/alerts' ? 'Incident History'
+        : currentPath === '/system' ? 'System Health'
+          : navLinks.find((link) => link.path === currentPath)?.label ?? 'Overview';
 
   const searchItems: SearchItem[] = [
     {
       id: 'p-overview',
       title: 'Surveillance Overview Dashboard',
       category: 'Pages',
-      path: '/',
+      path: '/dashboard',
       icon: <Eye size={16} />
     },
     {
@@ -199,8 +230,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
       id: 'p-alerts',
       title: 'Verified Incident Triage Console',
       category: 'Incident Response',
-      path: '/alerts',
+      path: '/incidents',
       icon: <AlertTriangle size={16} />
+    },
+    {
+      id: 'p-notifications',
+      title: 'Telegram Notification History',
+      category: 'Incident Response',
+      path: '/notifications',
+      icon: <Bell size={16} />
     },
     {
       id: 'p-analytics',
@@ -213,7 +251,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
       id: 'p-system',
       title: 'System Diagnostics & GPU/Worker Status',
       category: 'Infrastructure',
-      path: '/system',
+      path: '/system-health',
       icon: <Cpu size={16} />
     },
     {
@@ -265,118 +303,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
     <>
       <header className="modern-top-nav" role="banner">
         <div className="nav-container">
-          {/* =========================================================
-              LEFT: Brand Logo & Live Signal
-             ========================================================= */}
+          {/* Brand and current page */}
           <div className="nav-brand-group">
             <button
-              onClick={() => handleNav('/')}
+              onClick={() => handleNav('/dashboard')}
               className="nav-brand-button"
-              aria-label="FireNet XAI Home"
+              aria-label="ForestWatch AI home"
             >
-              <div className="brand-icon-wrapper">
-                <Flame size={20} className="brand-flame-icon" />
-              </div>
               <div className="brand-title-wrap">
-                <span className="brand-name">FireNet<span className="brand-accent">XAI</span></span>
-                <span className="brand-sub">SURVEILLANCE</span>
+                <span className="brand-name">FORESTWATCH AI</span>
               </div>
             </button>
-
-            {/* Tiny Mint Live Signal (Modern Dark design system token: --dp-color-live) */}
-            <div className="nav-live-badge" title="Surveillance Core Live">
-              <span className="live-dot" />
-              <span className="live-label">LIVE</span>
-            </div>
           </div>
 
-          {/* =========================================================
-              CENTER: Primary Navigation Links
-             ========================================================= */}
-          <nav className="nav-center-menu" role="navigation" aria-label="Primary Navigation">
-            {navLinks.map((link) => {
-              const isActive = currentPath === link.path || (link.path !== '/' && currentPath.startsWith(link.path));
-              return (
-                <button
-                  key={link.path}
-                  onClick={() => handleNav(link.path)}
-                  className={`nav-pill-link ${isActive ? 'active' : ''}`}
-                >
-                  {link.label}
-                  {isActive && <span className="nav-pill-indicator" />}
-                </button>
-              );
-            })}
-
-            {/* Multi-Level Dropdown: Resources & System */}
-            <div className="nav-dropdown-wrapper" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(prev => !prev)}
-                className={`nav-pill-link dropdown-trigger ${dropdownOpen ? 'dropdown-open' : ''}`}
-                aria-haspopup="true"
-                aria-expanded={dropdownOpen}
-                aria-label="Open resources and system menu"
-              >
-                <span>Resources</span>
-                <ChevronDown size={14} className={`dropdown-chevron ${dropdownOpen ? 'rotate' : ''}`} />
-              </button>
-
-              {dropdownOpen && (
-                <div className="nav-dropdown-menu" role="menu">
-                  <div className="dropdown-section-title">PLATFORM TOOLS</div>
-                  <button
-                    onClick={() => handleNav('/system')}
-                    className="dropdown-item"
-                    role="menuitem"
-                  >
-                    <div className="dropdown-item-icon">
-                      <Cpu size={16} />
-                    </div>
-                    <div className="dropdown-item-content">
-                      <div className="dropdown-item-title">System Diagnostics</div>
-                      <div className="dropdown-item-desc">Hardware utilization, worker threads & GPU</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleNav('/settings')}
-                    className="dropdown-item"
-                    role="menuitem"
-                  >
-                    <div className="dropdown-item-icon">
-                      <Settings size={16} />
-                    </div>
-                    <div className="dropdown-item-content">
-                      <div className="dropdown-item-title">Surveillance Settings</div>
-                      <div className="dropdown-item-desc">Confidence thresholds, camera feeds & alert rules</div>
-                    </div>
-                  </button>
-
-                  <div className="dropdown-divider" />
-                  <div className="dropdown-section-title">SPECIFICATIONS & API</div>
-
-                  <a
-                    href="http://127.0.0.1:8010/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="dropdown-item"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <div className="dropdown-item-icon">
-                      <FileCode2 size={16} />
-                    </div>
-                    <div className="dropdown-item-content">
-                      <div className="dropdown-item-title" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Swagger REST API <ExternalLink size={12} />
-                      </div>
-                      <div className="dropdown-item-desc">Interactive OpenAPI endpoints & schemas</div>
-                    </div>
-                  </a>
-                </div>
-              )}
-            </div>
-          </nav>
+          <div className="nav-current-page" aria-live="polite">{currentPageTitle}</div>
 
           {/* =========================================================
               RIGHT: Action Area (Search, Theme, CTAs, Mobile Hamburger)
@@ -397,10 +337,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
               </kbd>
             </button>
 
-            {/* Backend Health Sync & Status */}
-            <div className="nav-health-status" title={`Model: ${health?.model_loaded ? 'Active' : 'Standby'}, DB: ${health?.database || 'Pending'}`}>
-              <span className={`status-signal ${health?.model_loaded ? 'live' : 'standby'}`} />
-              <span className="status-text">{health?.model_loaded ? 'FireNet 1.0' : 'Standby'}</span>
+            <div
+              className="nav-health-status"
+              title={`Backend: ${health?.status ?? 'connecting'}, active camera workers: ${activeMonitoringCount ?? 'unknown'}, Database: ${health?.database ?? 'unknown'}, Model: ${health?.model_loaded ? 'loaded' : 'unavailable'}`}
+            >
+              <span className={`status-signal ${health?.status === 'offline' ? 'offline' : health?.status === 'healthy' ? 'live' : 'standby'}`} />
+              <span className="status-text">
+                {health?.status === 'offline'
+                  ? 'Backend offline'
+                  : demoMonitoringActive
+                    ? 'Demo monitoring active'
+                    : activeMonitoringCount && activeMonitoringCount > 0
+                      ? `Monitoring ${activeMonitoringCount}`
+                    : health?.status === 'healthy'
+                      ? 'System online'
+                      : 'Connecting'}
+              </span>
               <button
                 onClick={checkHealth}
                 className="status-sync-btn"
@@ -411,44 +363,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
               </button>
             </div>
 
-            {/* Dark / Light Mode Toggle Switch */}
             <button
-              onClick={toggleTheme}
-              className="nav-theme-toggle"
-              role="switch"
-              aria-checked={theme === 'light'}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              onClick={() => handleNav('/alerts')}
+              className="nav-notification-button"
+              aria-label={activeAlertCount === null ? 'Open verified alerts' : `${activeAlertCount} active alerts`}
+              title={activeAlertCount === null ? 'Verified alerts' : `${activeAlertCount} active alerts`}
             >
-              <div className={`theme-toggle-slider ${theme === 'light' ? 'light' : 'dark'}`}>
-                {theme === 'dark' ? <Moon size={13} className="theme-icon" /> : <Sun size={13} className="theme-icon" />}
-              </div>
+              <Bell size={17} />
+              {activeAlertCount !== null && activeAlertCount > 0 && (
+                <span className="nav-notification-count">{activeAlertCount > 99 ? '99+' : activeAlertCount}</span>
+              )}
             </button>
 
-            {/* Secondary CTA Button ("Docs" / Operator Guide) */}
-            <a
-              href="http://127.0.0.1:8010/docs"
-              target="_blank"
-              rel="noreferrer"
-              className="nav-cta-secondary"
-            >
-              Docs
-            </a>
-
-            {/* Primary CTA Button ("Live Monitor" - Filled pill with rounded corners) */}
-            <button
-              onClick={() => handleNav('/monitoring')}
-              className="nav-cta-primary"
-            >
-              <Radio size={14} className="cta-icon" />
-              <span>Live Monitor</span>
-            </button>
-
-            {/* Mobile Animated Hamburger Trigger */}
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
               className={`nav-hamburger-btn ${mobileMenuOpen ? 'open' : ''}`}
-              aria-label="Toggle navigation drawer"
+              aria-label="Toggle navigation menu"
               aria-expanded={mobileMenuOpen}
             >
               <span className="hamburger-line top" />
@@ -458,9 +388,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
           </div>
         </div>
 
-        {/* =========================================================
-            MOBILE SLIDE-OUT DRAWER
-           ========================================================= */}
+        {/* Responsive navigation drawer */}
         {mobileMenuOpen && (
           <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
             <div
@@ -470,10 +398,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
             >
               <div className="drawer-header">
                 <div className="drawer-brand">
-                  <div className="brand-icon-wrapper small">
-                    <Flame size={16} />
-                  </div>
-                  <span className="brand-name">FireNet<span className="brand-accent">XAI</span></span>
+                  <span className="brand-name">FORESTWATCH AI</span>
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
@@ -500,34 +425,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
               </div>
 
               <div className="drawer-nav-list">
-                <div className="drawer-section-label">SURVEILLANCE WORKSPACE</div>
+                <div className="drawer-section-label">WORKSPACE</div>
                 {navLinks.map((link) => {
-                  const isActive = currentPath === link.path || (link.path !== '/' && currentPath.startsWith(link.path));
+                  const isActive = currentPath === link.path
+                    || (link.path === '/dashboard' && currentPath === '/')
+                    || (link.path !== '/dashboard' && currentPath.startsWith(link.path));
                   return (
                     <button
                       key={link.path}
                       onClick={() => handleNav(link.path)}
                       className={`drawer-link ${isActive ? 'active' : ''}`}
                     >
-                      <span>{link.label}</span>
+                      <span className="drawer-link-content">{link.icon}<span>{link.label}</span></span>
                       {isActive && <span className="drawer-active-tag">Current</span>}
                     </button>
                   );
                 })}
 
-                <div className="drawer-section-label" style={{ marginTop: '16px' }}>SYSTEM & ADVANCED</div>
-                <button
-                  onClick={() => handleNav('/system')}
-                  className="drawer-link"
-                >
-                  <span>System Diagnostics</span>
-                </button>
-                <button
-                  onClick={() => handleNav('/settings')}
-                  className="drawer-link"
-                >
-                  <span>Operator Settings</span>
-                </button>
+                <div className="drawer-section-label" style={{ marginTop: '16px' }}>DEVELOPER</div>
                 <a
                   href="http://127.0.0.1:8010/docs"
                   target="_blank"
@@ -542,21 +457,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath = '/', onNavigate })
               </div>
 
               <div className="drawer-footer">
-                <div className="drawer-theme-row">
-                  <span style={{ fontSize: '0.85rem', color: 'var(--dp-color-read)' }}>Color Mode</span>
-                  <button
-                    onClick={toggleTheme}
-                    className="nav-theme-toggle"
-                    role="switch"
-                    aria-checked={theme === 'light'}
-                    aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                  >
-                    <div className={`theme-toggle-slider ${theme === 'light' ? 'light' : 'dark'}`}>
-                      {theme === 'dark' ? <Moon size={13} /> : <Sun size={13} />}
-                    </div>
-                  </button>
-                </div>
-
                 <div className="drawer-actions">
                   <button
                     onClick={() => handleNav('/monitoring')}

@@ -3,9 +3,7 @@ Backend Configuration and Environment Settings.
 """
 
 from typing import List, Optional
-from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -14,7 +12,9 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     API_HOST: str = "127.0.0.1"
     API_PORT: int = 8010
+    PORT: Optional[int] = None
     FRONTEND_ORIGIN: str = "http://localhost:5180"
+    CORS_ORIGINS: str = ""
 
     # Database Settings (PostgreSQL or SQLite fallback)
     DATABASE_URL: str = "sqlite:///./runtime/forest_fire.db"
@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     MODEL_PATH: str = "artifacts/checkpoints/firenet_best.pt"
     MODEL_DEVICE: str = "auto"
     MODEL_DEMO_MODE: bool = False
+
+    # Gemini multimodal analysis for image and video uploads (never CCTV alerts)
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
 
     # Thresholds & Temporal Verification
     IMAGE_SIZE: int = 224
@@ -39,6 +43,7 @@ class Settings(BaseSettings):
 
     # Notifications
     NOTIFICATION_PROVIDER: str = "console"
+    TELEGRAM_ENABLED: bool = False
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_CHAT_ID: Optional[str] = None
     SMTP_HOST: Optional[str] = None
@@ -53,14 +58,22 @@ class Settings(BaseSettings):
     )
 
     def get_cors_origins(self) -> List[str]:
-        return [
+        origins = [
             self.FRONTEND_ORIGIN.rstrip("/"),
             "http://localhost:5180",
             "http://127.0.0.1:5180",
+            "http://localhost:5181",
+            "http://127.0.0.1:5181",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "http://localhost:3000"
         ]
+        if self.CORS_ORIGINS:
+            for o in self.CORS_ORIGINS.split(","):
+                item = o.strip().rstrip("/")
+                if item and item not in origins:
+                    origins.append(item)
+        return origins
 
 
 settings = Settings()

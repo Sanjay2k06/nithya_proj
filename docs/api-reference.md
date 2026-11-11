@@ -40,6 +40,14 @@ All endpoints are prefixed with `/api/v1`.
 - **`POST /api/v1/monitoring/start`**: Start camera frame processing loop.
 - **`POST /api/v1/monitoring/stop`**: Stop camera frame processing loop.
 - **`GET /api/v1/monitoring/status`**: Current active workers, FPS, camera health.
+- **`GET /api/v1/monitoring/demo-sources`**: Lists available local simulated CCTV files and their source IDs.
+- **`GET /api/v1/monitoring/demo-sources/{source_id}/video`**: Streams the selected demo MP4.
+- **`POST /api/v1/monitoring/demo-sources/select`**: JSON `{ "source_id": "cam01-normal" }`; selects a source and resets its temporal buffer.
+- **`POST /api/v1/monitoring/demo-sources/start`** and **`POST /api/v1/monitoring/demo-sources/stop`**: Start/stop player-synchronized frame analysis.
+- **`GET /api/v1/monitoring/demo-sources/status`**: Reports selected source, processing lifecycle (`IDLE`, `IN_PROGRESS`, `VERIFYING`, `VERIFIED`, `STOPPED`, or `ERROR`), latest model result, processed video timestamp, and delay against the video timeline.
+- **`POST /api/v1/monitoring/demo-sources/start`**: Starts a cancellable backend task that opens the selected local MP4, decodes sampled frames, and passes them through FireNet-CNN preprocessing, inference, Grad-CAM, temporal verification, and persistence.
+- **`POST /api/v1/monitoring/demo-sources/stop`**: Cancels the backend processing task, waits for its decoder to release, clears active verification state, and reports `STOPPED`.
+  - Monitoring returns HTTP 503 unless a trained, non-demo FireNet-CNN checkpoint is loaded. A verified incident keeps the demo source ID and name in its record.
 
 ---
 
@@ -59,3 +67,21 @@ All endpoints are prefixed with `/api/v1`.
 - **`GET /api/v1/analytics/summary`**: Aggregated totals, per-class counts, temporal suppression statistics.
 - **`GET /api/v1/settings`**: Current operational thresholds.
 - **`PATCH /api/v1/settings`**: Update thresholds (`fire_threshold`, `temporal_window`, etc.).
+
+---
+
+## 7. Telegram Notifications
+Telegram credentials are read from the backend environment only. The API never returns the bot token.
+
+- **`GET /api/v1/notifications/telegram/status`**: Returns enabled/configured state, masked recipient, delivery totals, and the latest notification summary.
+- **`POST /api/v1/notifications/telegram/test`**: Sends and records a real test message. Returns a notification record with `DELIVERED` only when Telegram returns `{"ok": true}`; a delivery rejection is recorded as `FAILED`.
+- **`GET /api/v1/notifications?limit=50&offset=0`**: Lists Telegram delivery attempts, including message, incident ID, recipient, delivery status, retry count, and any error.
+- **`POST /api/v1/notifications/{notification_id}/retry`**: Retries a failed Telegram delivery and stores a separate attempt record. Delivered records cannot be retried.
+
+Automatic Telegram attempts are made only for newly verified fire incidents when Telegram is enabled. Verified smoke incidents are preserved but do not trigger emergency notifications. A fire incident remains pending while Telegram is disabled; it is not reported as delivered by the local console logger. Subsequent frames for an active incident update that incident without creating another message.
+
+## 8. Optional Environmental Readings
+- **`POST /api/v1/environment/readings`**: Ingests a real, source-associated sensor reading. Provide at least one of temperature (°C), humidity (%), wind speed (m/s), wind direction (degrees), or smoke-sensor value.
+- **`GET /api/v1/environment/readings?source_id=...&limit=50`**: Returns persisted sensor history, optionally filtered by source.
+
+Out-of-range readings and empty measurements are rejected. The API does not generate readings; environmental inputs remain supplementary decision support.

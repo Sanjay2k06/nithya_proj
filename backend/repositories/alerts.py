@@ -17,11 +17,15 @@ class AlertRepository:
         alert_type: str,
         severity: str,
         camera_id: Optional[str] = None,
-        detection_id: Optional[str] = None
+        detection_id: Optional[str] = None,
+        source_id: Optional[str] = None,
+        source_name: Optional[str] = None,
     ) -> Alert:
         now = datetime.now(timezone.utc)
         alert = Alert(
             camera_id=camera_id,
+            source_id=source_id,
+            source_name=source_name,
             detection_id=detection_id,
             alert_type=alert_type,
             severity=severity,
@@ -46,6 +50,23 @@ class AlertRepository:
             Alert.alert_type == alert_type,
             Alert.status == "ACTIVE"
         ).first()
+
+    @staticmethod
+    def get_active_for_source(db: Session, source_id: str, alert_type: str) -> Optional[Alert]:
+        return db.query(Alert).filter(
+            Alert.source_id == source_id,
+            Alert.alert_type == alert_type,
+            Alert.status == "ACTIVE"
+        ).first()
+
+    @staticmethod
+    def get_latest_for_source(db: Session, source_id: str, alert_type: str) -> Optional[Alert]:
+        return (
+            db.query(Alert)
+            .filter(Alert.source_id == source_id, Alert.alert_type == alert_type)
+            .order_by(desc(Alert.created_at))
+            .first()
+        )
 
     @staticmethod
     def list_paginated(

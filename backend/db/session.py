@@ -11,8 +11,11 @@ from backend.core.config import settings
 from backend.core.logging import logger
 from backend.db.base import Base
 
-# Ensure runtime directory exists for SQLite
+# Ensure directory exists for SQLite
 if settings.DATABASE_URL.startswith("sqlite"):
+    db_file_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    if db_file_path and not db_file_path.startswith(":memory:"):
+        Path(db_file_path).resolve().parent.mkdir(parents=True, exist_ok=True)
     Path("./runtime").mkdir(parents=True, exist_ok=True)
     engine = create_engine(
         settings.DATABASE_URL,
@@ -46,6 +49,8 @@ def init_db() -> None:
     import backend.models.alert
     import backend.models.setting
     import backend.models.notification_log
+    import backend.models.environmental_reading
+    import backend.models.monitoring_source
 
     logger.info("Initializing database tables...")
     Base.metadata.create_all(bind=engine)

@@ -6,7 +6,6 @@ import {
   Clock,
   ArrowRight,
   ShieldAlert,
-  CheckCircle,
   Eye,
   RefreshCw
 } from 'lucide-react';
@@ -24,6 +23,86 @@ import { AnalyticsSummary, Detection, Alert } from '../types';
 import { StatCard } from '../components/common/StatCard';
 import { Badge } from '../components/common/Badge';
 
+const createDemoDetections = (): Detection[] => {
+  const now = Date.now();
+  const samples: Array<{
+    predicted_class: Detection['predicted_class'];
+    confidence: number;
+    camera_name: string;
+    minutesAgo: number;
+  }> = [
+    { predicted_class: 'smoke', confidence: 0.84, camera_name: 'CAM 02 · North Ridge', minutesAgo: 4 },
+    { predicted_class: 'normal', confidence: 0.96, camera_name: 'CAM 01 · Pine Valley', minutesAgo: 8 },
+    { predicted_class: 'fire', confidence: 0.91, camera_name: 'CAM 03 · East Trail', minutesAgo: 13 },
+    { predicted_class: 'normal', confidence: 0.93, camera_name: 'CAM 02 · North Ridge', minutesAgo: 19 },
+    { predicted_class: 'smoke', confidence: 0.78, camera_name: 'CAM 01 · Pine Valley', minutesAgo: 26 },
+    { predicted_class: 'fire', confidence: 0.88, camera_name: 'CAM 03 · East Trail', minutesAgo: 34 }
+  ];
+
+  return samples.map((sample, index) => {
+    const remaining = 1 - sample.confidence;
+    const probabilities = {
+      fire: sample.predicted_class === 'fire' ? sample.confidence : remaining / 2,
+      smoke: sample.predicted_class === 'smoke' ? sample.confidence : remaining / 2,
+      normal: sample.predicted_class === 'normal' ? sample.confidence : remaining / 2
+    };
+    const timestamp = new Date(now - sample.minutesAgo * 60_000);
+
+    return {
+      id: `demo-detection-${index + 1}`,
+      camera_id: `demo-camera-${sample.camera_name.slice(5, 6)}`,
+      camera_name: sample.camera_name,
+      source_type: 'DEMO',
+      predicted_class: sample.predicted_class,
+      confidence: sample.confidence,
+      probabilities_json: probabilities,
+      frame_timestamp: timestamp.getTime() / 1000,
+      inference_ms: 42 + index * 3,
+      model_version: 'sample-data',
+      temporal_state: {
+        is_temporally_verified: false,
+        alert_triggered: false,
+        status_label: 'DEMO SAMPLE · NOT INFERRED',
+        positive_fire_count: sample.predicted_class === 'fire' ? 1 : 0,
+        positive_smoke_count: sample.predicted_class === 'smoke' ? 1 : 0,
+        window_size: 5,
+        required_positives: 3,
+        in_cooldown: false,
+        cooldown_remaining_seconds: 0
+      },
+      created_at: timestamp.toISOString()
+    };
+  });
+};
+
+const createDemoSummary = (dailyTrend: AnalyticsSummary['daily_trend']): AnalyticsSummary => ({
+  total_detections: 168,
+  classes: { fire: 62, smoke: 18, normal: 88 },
+  active_alerts: 2,
+  total_alerts: 12,
+  total_cameras: 3,
+  active_cameras: 3,
+  avg_inference_ms: 22.4,
+  suppression_efficiency: {
+    raw_positives: 80,
+    verified_alerts: 12,
+    suppressed_transients: 68,
+    suppression_percentage: 85.0
+  },
+  daily_trend: dailyTrend
+});
+
+const createDemoDailyTrend = (): AnalyticsSummary['daily_trend'] =>
+  Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      detections: [13, 9, 14, 13, 11, 16, 22][index],
+      alerts: [2, 1, 0, 0, 0, 1, 3][index]
+    };
+  });
+
 interface DashboardPageProps {
   onNavigate: (path: string) => void;
 }
@@ -33,23 +112,50 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [recentDetections, setRecentDetections] = useState<Detection[]>([]);
   const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showingDemoData, setShowingDemoData] = useState(false);
 
   const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [sumData, detData, alertData] = await Promise.all([
-        api.getAnalyticsSummary(),
-        api.getDetections(1, 6),
-        api.getAlerts(1, 5, 'ACTIVE')
-      ]);
-      setSummary(sumData);
-      setRecentDetections(detData.items);
-      setActiveAlerts(alertData.items);
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err);
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    const results = await Promise.allSettled([
+      api.getAnalyticsSummary(),
+      api.getDetections(1, 6),
+      api.getAlerts(1, 5, 'ACTIVE')
+    ]);
+    const [summaryResult, detectionsResult, alertsResult] = results;
+    let usedDemoData = false;
+    const demoDetections = createDemoDetections();
+    const demoSummary = createDemoSummary(createDemoDailyTrend());
+
+    if (summaryResult.status === 'fulfilled' && summaryResult.value.total_detections > 0) {
+      setSummary(summaryResult.value);
+    } else {
+      setSummary(demoSummary);
+      usedDemoData = true;
+      if (summaryResult.status === 'rejected') {
+        console.error('Failed to load dashboard analytics:', summaryResult.reason);
+      }
     }
+
+    if (detectionsResult.status === 'fulfilled' && detectionsResult.value.items.length > 0) {
+      setRecentDetections(detectionsResult.value.items);
+    } else {
+      setRecentDetections(demoDetections);
+      usedDemoData = true;
+      if (detectionsResult.status === 'rejected') {
+        console.error('Failed to load recent detections:', detectionsResult.reason);
+      }
+    }
+
+    if (alertsResult.status === 'fulfilled') {
+      setActiveAlerts(alertsResult.value.items);
+    } else {
+      setActiveAlerts([]);
+      usedDemoData = true;
+      console.error('Failed to load active alerts:', alertsResult.reason);
+    }
+
+    setShowingDemoData(usedDemoData);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -80,9 +186,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {showingDemoData && (
+        <div
+          role="status"
+          style={{
+            marginBottom: '20px',
+            padding: '12px 16px',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-muted)',
+            fontSize: '0.86rem'
+          }}
+        >
+          <strong style={{ color: 'var(--text-main)' }}>DEMO DATA</strong>
+          {' · '}Sample dashboard values for preview only. These are not live model results and do not create incidents or Telegram notifications.
+        </div>
+      )}
+
       {/* Active Incidents Banner */}
       {activeAlerts.length > 0 && (
-        <div className="glass-card" style={{
+        <div className="glass-card reveal-up" style={{
           marginBottom: '28px',
           padding: '20px 24px',
           background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)',
@@ -121,41 +245,49 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       )}
 
       {/* Stats Metric Cards */}
-      <div className="grid-4" style={{ marginBottom: '28px' }}>
-        <StatCard
-          title="Total Detections"
-          value={summary?.total_detections ?? 0}
-          subtext={`Fire: ${summary?.classes.fire ?? 0} · Smoke: ${summary?.classes.smoke ?? 0} · Normal: ${summary?.classes.normal ?? 0}`}
-          icon={<Flame size={20} />}
-          accentColor="var(--color-flame)"
-        />
-        <StatCard
-          title="Active Verified Incidents"
-          value={summary?.active_alerts ?? 0}
-          subtext={`Total incidents: ${summary?.total_alerts ?? 0}`}
-          icon={<AlertTriangle size={20} />}
-          accentColor={summary && summary.active_alerts > 0 ? '#ef4444' : 'var(--color-normal)'}
-        />
-        <StatCard
-          title="Surveillance Feeds"
-          value={`${summary?.active_cameras ?? 0} / ${summary?.total_cameras ?? 0}`}
-          subtext="Active streaming cameras"
-          icon={<Radio size={20} />}
-          accentColor="var(--color-accent)"
-        />
-        <StatCard
-          title="Inference Latency"
-          value={`${summary?.avg_inference_ms ?? 12.5} ms`}
-          subtext="Per-frame computation time on CPU"
-          icon={<Clock size={20} />}
-          accentColor="var(--color-normal)"
-        />
+      <div className="grid-4 reveal-up delay-1" style={{ marginBottom: '28px' }}>
+        <div className="reveal-up delay-1">
+          <StatCard
+            title="Total Detections"
+            value={summary?.total_detections ?? 0}
+            subtext={`Fire: ${summary?.classes.fire ?? 0} · Smoke: ${summary?.classes.smoke ?? 0} · Normal: ${summary?.classes.normal ?? 0}`}
+            icon={<Flame size={20} />}
+            accentColor="var(--color-flame)"
+          />
+        </div>
+        <div className="reveal-up delay-2">
+          <StatCard
+            title="Active Verified Incidents"
+            value={summary?.active_alerts ?? 0}
+            subtext={`Total incidents: ${summary?.total_alerts ?? 0}`}
+            icon={<AlertTriangle size={20} />}
+            accentColor={summary && summary.active_alerts > 0 ? '#ef4444' : 'var(--color-normal)'}
+          />
+        </div>
+        <div className="reveal-up delay-3">
+          <StatCard
+            title="Surveillance Feeds"
+            value={`${summary?.active_cameras ?? 0} / ${summary?.total_cameras ?? 0}`}
+            subtext="Active streaming cameras"
+            icon={<Radio size={20} />}
+            accentColor="var(--color-accent)"
+          />
+        </div>
+        <div className="reveal-up delay-4">
+          <StatCard
+            title="Inference Latency"
+            value={`${summary?.avg_inference_ms ?? 12.5} ms`}
+            subtext="Per-frame computation time on CPU"
+            icon={<Clock size={20} />}
+            accentColor="var(--color-normal)"
+          />
+        </div>
       </div>
 
       {/* Charts & Recent Activity */}
       <div className="grid-2" style={{ marginBottom: '28px' }}>
         {/* Trend Area Chart */}
-        <div className="glass-card" style={{ padding: '24px' }}>
+        <div className="glass-card reveal-up delay-2" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h3 style={{ fontSize: '1.1rem', color: '#fff' }}>7-Day Surveillance Timeline</h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Detections vs Verified Alerts</span>
@@ -199,7 +331,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Temporal Verification Efficacy */}
-        <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div className="glass-card reveal-up delay-3" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <h3 style={{ fontSize: '1.1rem', color: '#fff' }}>Temporal Noise Suppression</h3>
@@ -254,7 +386,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Recent Detections Log */}
-      <div className="glass-card" style={{ padding: '24px' }}>
+      <div className="glass-card reveal-up delay-4" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '1.1rem', color: '#fff' }}>Recent Inference Stream</h3>
@@ -318,14 +450,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                       {new Date(det.created_at).toLocaleTimeString()}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button
-                        onClick={() => onNavigate(`/detections/${det.id}`)}
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                      >
-                        <Eye size={13} />
-                        <span>Grad-CAM</span>
-                      </button>
+                      {det.id.startsWith('demo-') ? (
+                        <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>Sample only</span>
+                      ) : (
+                        <button
+                          onClick={() => onNavigate(`/detections/${det.id}`)}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                        >
+                          <Eye size={13} />
+                          <span>Grad-CAM</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

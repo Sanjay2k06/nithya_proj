@@ -33,6 +33,7 @@ ENV/
 artifacts/checkpoints/*.pt
 artifacts/checkpoints/*.pth
 artifacts/checkpoints/*.onnx
+!artifacts/checkpoints/firenet_best.pt
 
 # Data directories (keep manifests and samples only)
 data/raw/*

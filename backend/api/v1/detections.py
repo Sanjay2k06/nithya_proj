@@ -40,6 +40,7 @@ def list_detections(
         res_items.append(DetectionResponse(
             id=d.id,
             camera_id=d.camera_id,
+            source_id=d.source_id,
             camera_name=cam_name,
             source_type=d.source_type,
             predicted_class=d.predicted_class,
@@ -74,6 +75,7 @@ def get_detection(id: str, db: Session = Depends(get_db)):
     return DetectionResponse(
         id=d.id,
         camera_id=d.camera_id,
+        source_id=d.source_id,
         camera_name=cam_name,
         source_type=d.source_type,
         predicted_class=d.predicted_class,

@@ -10,7 +10,7 @@ import {
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, resolveMediaUrl } from '../services/api';
 import { Detection, ClassLabel } from '../types';
 import { Badge } from '../components/common/Badge';
 
@@ -129,7 +129,7 @@ export const DetectionDetailPage: React.FC<DetectionDetailPageProps> = ({
                 <div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '8px', textTransform: 'uppercase' }}>Original Frame</div>
                   <img
-                    src={detection.image_path || ''}
+                    src={resolveMediaUrl(detection.image_path)}
                     alt="Original Frame"
                     style={{ width: '100%', height: '360px', objectFit: 'contain', borderRadius: '6px', background: '#000' }}
                   />
@@ -137,7 +137,7 @@ export const DetectionDetailPage: React.FC<DetectionDetailPageProps> = ({
                 <div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--color-flame)', marginBottom: '8px', textTransform: 'uppercase' }}>Grad-CAM Activation Map</div>
                   <img
-                    src={detection.heatmap_path || detection.image_path || ''}
+                    src={resolveMediaUrl(detection.heatmap_path || detection.image_path)}
                     alt="Grad-CAM Explanation"
                     style={{ width: '100%', height: '360px', objectFit: 'contain', borderRadius: '6px', background: '#000' }}
                   />
@@ -145,13 +145,13 @@ export const DetectionDetailPage: React.FC<DetectionDetailPageProps> = ({
               </div>
             ) : viewMode === 'heatmap' ? (
               <img
-                src={detection.heatmap_path || detection.image_path || ''}
+                src={resolveMediaUrl(detection.heatmap_path || detection.image_path)}
                 alt="Grad-CAM Explanation"
                 style={{ width: '100%', maxHeight: '480px', objectFit: 'contain' }}
               />
             ) : (
               <img
-                src={detection.image_path || ''}
+                src={resolveMediaUrl(detection.image_path)}
                 alt="Original Frame"
                 style={{ width: '100%', maxHeight: '480px', objectFit: 'contain' }}
               />

@@ -3,6 +3,7 @@ Model Information and Status Endpoint.
 """
 
 from fastapi import APIRouter
+from pathlib import Path
 from backend.core.config import settings
 from backend.services.prediction_service import prediction_service
 from ml.config import CLASS_NAMES
@@ -22,7 +23,14 @@ def get_model_status():
         "classes": CLASS_NAMES,
         "device": str(eng.device) if eng else "unknown",
         "demo_mode": eng.demo_mode if eng else False,
-        "checkpoint_path": settings.MODEL_PATH,
+        "checkpoint_path": str(
+            Path(settings.MODEL_PATH)
+            if Path(settings.MODEL_PATH).is_absolute()
+            else Path(__file__).resolve().parents[3] / settings.MODEL_PATH
+        ),
+        "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "gemini_model": settings.GEMINI_MODEL,
+        "error": prediction_service.model_error,
         "fire_threshold": settings.FIRE_THRESHOLD,
         "smoke_threshold": settings.SMOKE_THRESHOLD
     }

@@ -54,7 +54,7 @@ export const AlertsPage: React.FC<AlertsPageProps> = ({ onNavigate }) => {
   return (
     <div className="page-container">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      <div className="reveal-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '1.85rem', color: '#fff', marginBottom: '6px' }}>Incident Triage & Alert Console</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
@@ -68,7 +68,7 @@ export const AlertsPage: React.FC<AlertsPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+      <div className="reveal-up delay-1" style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
         {[
           { label: 'All Incidents', val: '' },
           { label: 'Active', val: 'ACTIVE' },

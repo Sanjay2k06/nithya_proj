@@ -2,6 +2,7 @@
 FastAPI Application Entrypoint.
 """
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request
@@ -13,6 +14,7 @@ from backend.core.config import settings
 from backend.core.logging import logger
 from backend.db.session import init_db
 from backend.api.router import api_router
+from backend.services.demo_monitoring_service import demo_monitoring_service
 from backend.workers.monitoring_manager import monitoring_manager
 
 
@@ -22,15 +24,41 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up Explainable Forest Fire Detection Backend API...")
     init_db()
 
+    # Seed initial cameras and baseline telemetry if empty (useful for fresh cloud deployments)
+    try:
+        from scripts.seed_database import seed
+        seed()
+    except Exception as exc:
+        logger.warning("Database seed check notice: %s", exc)
+
     # Ensure media directories exist
     media_path = Path(settings.MEDIA_ROOT)
     (media_path / "originals").mkdir(parents=True, exist_ok=True)
     (media_path / "heatmaps").mkdir(parents=True, exist_ok=True)
 
+    # Optional embedded Telegram bot for single-service cloud deployments (e.g. Render Free Tier)
+    bot_app = None
+    if settings.TELEGRAM_ENABLED and os.environ.get("RUN_BOT_IN_API", "false").lower() in ("true", "1", "yes"):
+        try:
+            from bot import start_bot_async
+            bot_app = await start_bot_async()
+        except Exception as exc:
+            logger.warning("Could not launch embedded Telegram bot: %s", exc)
+
     yield
 
     # Shutdown
     logger.info("Shutting down API and releasing worker resources...")
+    if bot_app:
+        try:
+            if bot_app.updater and bot_app.updater.running:
+                await bot_app.updater.stop()
+            await bot_app.stop()
+            await bot_app.shutdown()
+        except Exception as exc:
+            logger.warning("Error stopping embedded Telegram bot: %s", exc)
+
+    demo_monitoring_service.stop()
     monitoring_manager.shutdown_all()
     logger.info("Shutdown completed.")
 
@@ -42,11 +70,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Middleware
+# CORS Middleware (supports local development, specific origins, and cloud wildcards)
+cors_origins = settings.get_cors_origins()
+allow_all = "*" in cors_origins or settings.CORS_ORIGINS.strip() == "*"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.get_cors_origins(),
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all else cors_origins,
+    allow_credentials=not allow_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )

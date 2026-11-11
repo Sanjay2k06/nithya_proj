@@ -15,6 +15,8 @@ class Alert(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     camera_id = Column(String(36), ForeignKey("cameras.id", ondelete="CASCADE"), nullable=True, index=True)
+    source_id = Column(String(128), nullable=True, index=True)
+    source_name = Column(String(255), nullable=True)
     detection_id = Column(String(36), ForeignKey("detections.id", ondelete="SET NULL"), nullable=True, index=True)
     alert_type = Column(String(20), nullable=False, index=True)  # fire, smoke
     severity = Column(String(20), default="CRITICAL", nullable=False)  # CRITICAL, WARNING, INFO

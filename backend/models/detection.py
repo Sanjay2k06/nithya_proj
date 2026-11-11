@@ -15,6 +15,7 @@ class Detection(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     camera_id = Column(String(36), ForeignKey("cameras.id", ondelete="CASCADE"), nullable=True, index=True)
+    source_id = Column(String(128), nullable=True, index=True)
     source_type = Column(String(30), default="stream", nullable=False)  # stream, image_upload, video_upload
     predicted_class = Column(String(20), nullable=False, index=True)  # fire, smoke, normal
     confidence = Column(Float, nullable=False, index=True)

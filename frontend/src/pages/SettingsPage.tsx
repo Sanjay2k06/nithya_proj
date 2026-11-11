@@ -187,6 +187,19 @@ export const SettingsPage: React.FC = () => {
           </button>
         </div>
       </form>
+
+      <section className="glass-card optional-input-settings">
+        <div>
+          <h2>Optional environmental sensor inputs</h2>
+          <p>No sensor hardware is configured. Real readings may be posted to the backend ingestion endpoint and will be shown in System Health; missing values are never filled with estimates.</p>
+          <code>POST /api/v1/environment/readings</code>
+          <p>Temperature, humidity, wind, and smoke-sensor readings remain supplementary decision support and do not replace FireNet-CNN classification.</p>
+        </div>
+        <div>
+          <h2>Simulated CCTV sources</h2>
+          <p>CAM 01 and CAM 02 use the local MP4 files and are demonstration footage, not physical camera connections.</p>
+        </div>
+      </section>
     </div>
   );
 };

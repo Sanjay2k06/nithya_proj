@@ -4,7 +4,7 @@ Alerts and Incident Management API Endpoints.
 
 from typing import Optional
 import math
-from fastapi import APIRouter, Depends, Query, HTTPException, Body
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.db.session import get_db
@@ -33,10 +33,12 @@ def list_alerts(
 
     res_items = []
     for a in items:
-        cam_name = a.camera.name if a.camera else "Upload"
+        cam_name = a.source_name or (a.camera.name if a.camera else "Upload")
         res_items.append(AlertResponse(
             id=a.id,
             camera_id=a.camera_id,
+            source_id=a.source_id,
+            source_name=a.source_name,
             camera_name=cam_name,
             detection_id=a.detection_id,
             alert_type=a.alert_type,
@@ -74,10 +76,12 @@ def update_alert_status(
     if not updated:
         raise HTTPException(status_code=404, detail="Alert not found.")
 
-    cam_name = updated.camera.name if updated.camera else "Upload"
+    cam_name = updated.source_name or (updated.camera.name if updated.camera else "Upload")
     return AlertResponse(
         id=updated.id,
         camera_id=updated.camera_id,
+        source_id=updated.source_id,
+        source_name=updated.source_name,
         camera_name=cam_name,
         detection_id=updated.detection_id,
         alert_type=updated.alert_type,
